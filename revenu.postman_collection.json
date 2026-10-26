@@ -1,0 +1,411 @@
+{
+  "info": {
+    "name": "revenu",
+    "description": "Collection de tests pour l'API Strapi de la communauté Le Revenu",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:1337" },
+    { "key": "jwt", "value": "" },
+    { "key": "discussionDocumentId", "value": "" },
+    { "key": "replyDocumentId", "value": "" },
+    { "key": "categoryDocumentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Login demo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('JWT présent', () => pm.expect(json.jwt).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('jwt', json.jwt);",
+                  "console.log('JWT sauvegardé');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"identifier\":\"demo@example.com\",\"password\":\"123456\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/local",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "local"]
+            }
+          }
+        },
+        {
+          "name": "Me (profil connecté)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Utilisateur demo', () => pm.expect(json.username).to.eql('demo'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Lister les catégories (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('data est un tableau', () => pm.expect(json.data).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Créer une catégorie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 ou 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.documentId) {",
+                  "  pm.collectionVariables.set('categoryDocumentId', json.data.documentId);",
+                  "  console.log('categoryDocumentId =', json.data.documentId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"name\":\"Bourse & actions\",\"slug\":\"bourse-actions\",\"description\":\"Actions, ETF, PEA.\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Discussions",
+      "item": [
+        {
+          "name": "Créer sans token (doit échouer 401/403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refusé (401 ou 403)', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"title\":\"Un titre assez long\",\"content\":\"Contenu\",\"type\":\"question\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discussions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discussions"]
+            }
+          }
+        },
+        {
+          "name": "Tentative d'usurpation author (doit échouer 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rejeté (400)', () => pm.response.to.have.status(400));",
+                  "pm.test('Message mentionne author', () => pm.expect(JSON.stringify(pm.response.json())).to.include('author'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"title\":\"Tentative usurpation\",\"content\":\"Test.\",\"type\":\"question\",\"author\":999}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discussions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discussions"]
+            }
+          }
+        },
+        {
+          "name": "Validation titre trop court (doit échouer 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rejeté (400)', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test('Message 10 caractères', () => pm.expect(json.error.message).to.include('10 caractères'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"title\":\"Court\",\"content\":\"Test.\",\"type\":\"question\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discussions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discussions"]
+            }
+          }
+        },
+        {
+          "name": "Créer une discussion (valide)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 ou 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const json = pm.response.json();",
+                  "pm.test('documentId présent', () => pm.expect(json.data.documentId).to.be.a('string'));",
+                  "pm.collectionVariables.set('discussionDocumentId', json.data.documentId);",
+                  "console.log('discussionDocumentId =', json.data.documentId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"title\":\"Premier test de discussion\",\"content\":\"Ceci est un contenu de test suffisamment long.\",\"type\":\"question\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discussions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discussions"]
+            }
+          }
+        },
+        {
+          "name": "Lister avec relations (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('data est un tableau', () => pm.expect(json.data).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/discussions?populate[author]=true&populate[category]=true&populate[replies][populate]=author",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discussions"],
+              "query": [
+                { "key": "populate[author]", "value": "true" },
+                { "key": "populate[category]", "value": "true" },
+                { "key": "populate[replies][populate]", "value": "author" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Détail de la discussion créée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/discussions/{{discussionDocumentId}}?populate[author]=true&populate[category]=true&populate[replies][populate]=author",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discussions", "{{discussionDocumentId}}"],
+              "query": [
+                { "key": "populate[author]", "value": "true" },
+                { "key": "populate[category]", "value": "true" },
+                { "key": "populate[replies][populate]", "value": "author" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Replies",
+      "item": [
+        {
+          "name": "Créer sans token (doit échouer 401/403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refusé (401 ou 403)', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"content\":\"Réponse non authentifiée\",\"discussion\":\"{{discussionDocumentId}}\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/replies",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "replies"]
+            }
+          }
+        },
+        {
+          "name": "Créer une réponse (valide)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 ou 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const json = pm.response.json();",
+                  "pm.test('documentId présent', () => pm.expect(json.data.documentId).to.be.a('string'));",
+                  "pm.collectionVariables.set('replyDocumentId', json.data.documentId);",
+                  "console.log('replyDocumentId =', json.data.documentId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"data\":{\"content\":\"Voici ma réponse de test.\",\"discussion\":\"{{discussionDocumentId}}\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/replies",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "replies"]
+            }
+          }
+        },
+        {
+          "name": "Lister les réponses (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('data est un tableau', () => pm.expect(json.data).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/replies?populate[author]=true&populate[discussion]=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "replies"],
+              "query": [
+                { "key": "populate[author]", "value": "true" },
+                { "key": "populate[discussion]", "value": "true" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
