@@ -1,0 +1,31 @@
+{
+  "kind": "collectionType",
+  "collectionName": "replies",
+  "info": {
+    "singularName": "reply",
+    "pluralName": "replies",
+    "displayName": "Reply"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "content": {
+      "type": "text",
+      "unique": false
+    },
+    "author": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "replies"
+    },
+    "discussion": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::discussion.discussion",
+      "inversedBy": "replies"
+    }
+  }
+}

@@ -1,0 +1,156 @@
+'use client';
+
+import Link from 'next/link';
+import { FormEvent, useEffect, useState } from 'react';
+import { Category, Discussion, getCategories, getDiscussions } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+
+export default function ProfilePage() {
+  const { user, isLoading } = useAuth();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    Promise.all([getCategories(), getDiscussions()])
+      .then(([loadedCategories, loadedDiscussions]) => {
+        if (!active) return;
+        setCategories(loadedCategories);
+        setDiscussions(loadedDiscussions);
+        const saved = localStorage.getItem(`community-interests:${user.documentId}`);
+        setInterests(saved ? JSON.parse(saved) as string[] : []);
+      })
+      .catch(cause => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Impossible de charger le profil.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [user]);
+
+  if (isLoading) return <main className="wrap"><p className="loading-state">Chargement du profil…</p></main>;
+  if (!user) {
+    return (
+      <main className="wrap profile-wrap">
+        <section className="card empty-state">
+          <h1>Connectez-vous pour voir votre profil</h1>
+          <p>Retrouvez vos contributions et personnalisez les espaces qui vous intéressent.</p>
+          <Link href="/login" className="btn btn-primary">Se connecter</Link>
+        </section>
+      </main>
+    );
+  }
+
+  const myDiscussions = discussions.filter(discussion => discussion.author?.documentId === user.documentId);
+  const myReplies = discussions.reduce(
+    (total, discussion) => total + discussion.replies.filter(reply => reply.author?.documentId === user.documentId).length,
+    0,
+  );
+
+  function toggleInterest(slug: string) {
+    setInterests(current => current.includes(slug)
+      ? current.filter(value => value !== slug)
+      : [...current, slug]);
+  }
+
+  function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!user) {
+      setError('Connectez-vous pour modifier vos préférences.');
+      return;
+    }
+    if (!interests.length) {
+      setError('Sélectionnez au moins un espace pour personnaliser votre fil.');
+      return;
+    }
+    try {
+      localStorage.setItem(`community-interests:${user.documentId}`, JSON.stringify(interests));
+      setMessage('Vos centres d’intérêt ont été enregistrés sur cet appareil.');
+    } catch {
+      setError('Vos préférences n’ont pas pu être enregistrées sur cet appareil.');
+    }
+  }
+
+  return (
+    <main className="wrap profile-wrap">
+      <div className="profile-layout">
+        <div className="main">
+          <section className="card profile-header">
+            <span className="profile-avatar" aria-hidden="true">{user.username.slice(0, 1).toUpperCase()}</span>
+            <div className="profile-identity">
+              <span className="eyebrow">PROFIL MEMBRE</span>
+              <h1>{user.username}</h1>
+              <p>@{user.username} · Compte connecté au Revenu</p>
+            </div>
+            <Link href="/discussions/new" className="btn btn-primary">＋ Publier</Link>
+          </section>
+
+          <section className="profile-stats">
+            <div className="card"><b>{myDiscussions.length}</b><small>discussions</small></div>
+            <div className="card"><b>{myReplies}</b><small>réponses</small></div>
+            <div className="card"><b>{interests.length}</b><small>espaces suivis</small></div>
+          </section>
+
+          <form className="card interests-form" onSubmit={saveProfile}>
+            <div className="section-heading">
+              <div><h2>Mes centres d’intérêt</h2><p>Choisissez les espaces à retrouver en priorité dans votre fil.</p></div>
+              <span className="interest-count">{interests.length} sélectionné{interests.length === 1 ? '' : 's'}</span>
+            </div>
+            {loading ? <p className="muted">Chargement de vos espaces…</p> : (
+              <div className="interest-grid profile-interest-grid">
+                {categories.map(category => (
+                  <label key={category.documentId} className={`interest-option ${interests.includes(category.slug) ? 'selected' : ''}`}>
+                    <input type="checkbox" checked={interests.includes(category.slug)} onChange={() => toggleInterest(category.slug)} />
+                    <span>{category.name}</span>
+                    <span className="interest-check" aria-hidden="true">{interests.includes(category.slug) ? '✓' : ''}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {error && <p className="form-error" role="alert">{error}</p>}
+            {message && <p className="form-success" role="status">{message}</p>}
+            <button type="submit" className="btn btn-primary" disabled={loading}>Enregistrer mes préférences</button>
+          </form>
+
+          <section className="card profile-activity">
+            <div className="section-heading"><div><h2>Mes discussions</h2><p>Vos publications récentes dans la communauté.</p></div></div>
+            {error && <p className="form-error" role="alert">{error}</p>}
+            {myDiscussions.length ? (
+              <div className="profile-discussion-list">
+                {myDiscussions.map(discussion => (
+                  <Link key={discussion.documentId} href={`/discussions/${discussion.documentId}`} className="profile-discussion">
+                    <span className="cat-tag">{discussion.category?.name ?? 'Sans catégorie'}</span>
+                    <b>{discussion.title}</b>
+                    <small>{discussion.replies.length} réponse{discussion.replies.length === 1 ? '' : 's'}</small>
+                  </Link>
+                ))}
+              </div>
+            ) : <p className="muted">Vous n’avez pas encore publié de discussion.</p>}
+            <Link href="/discussions/new" className="text-link">Lancer une discussion →</Link>
+          </section>
+        </div>
+
+        <aside className="right">
+          <section className="card">
+            <h2 className="card-title">Votre compte</h2>
+            <p className="card-copy">Connecté avec l’adresse e-mail de votre compte Le Revenu.</p>
+            <span className="account-email">{user.email}</span>
+          </section>
+          <section className="card join-card">
+            <h2>Faites vivre la communauté</h2>
+            <p>Une question sans réponse attend peut-être votre expérience.</p>
+            <Link href="/?sort=unanswered" className="btn btn-secondary btn-block">Aider un membre</Link>
+          </section>
+        </aside>
+      </div>
+    </main>
+  );
+}
