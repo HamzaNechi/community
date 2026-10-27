@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import Cookies from 'js-cookie';
-import { login as apiLogin, StrapiUser } from './api';
+import { clearStoredSession, login as apiLogin, restoreSession, StrapiUser } from './api';
 
 interface AuthContextType {
   user: StrapiUser | null;
@@ -27,7 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.resolve().then(() => {
+    const expireSession = () => setUser(null);
+    window.addEventListener('community-session-expired', expireSession);
+    Promise.resolve().then(async () => {
       if (cancelled) return;
       try {
         const stored = localStorage.getItem('strapi_user');
@@ -40,7 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem('strapi_user');
             parsed = null;
           }
-          if (isStoredUser(parsed)) setUser(parsed);
+          if (isStoredUser(parsed)) {
+            if (await restoreSession()) {
+              if (!cancelled) setUser(parsed);
+            } else {
+              clearStoredSession();
+            }
+          }
           else if (parsed !== null) {
             console.error('Le profil enregistré ne respecte pas le format attendu.');
             localStorage.removeItem('strapi_user');
@@ -48,11 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (cause) {
         console.error('Impossible de restaurer le profil enregistré.', cause);
+        clearStoredSession();
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.removeEventListener('community-session-expired', expireSession);
+    };
   }, []);
 
   async function login(identifier: string, password: string) {
@@ -64,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    Cookies.remove('jwt');
-    localStorage.removeItem('strapi_user');
+    Cookies.remove('jwt', { path: '/' });
+    clearStoredSession();
     setUser(null);
   }
 

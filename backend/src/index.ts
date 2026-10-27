@@ -4,9 +4,29 @@ export default {
   register({ strapi }: { strapi: Core.Strapi }) {},
 
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
-    // Vérifie si la base est déjà peuplée pour éviter les doublons
+    await initializeCommunityCounters(strapi);
     const count = await strapi.documents('api::category.category').count({});
     if (count > 0) {
+      const categories = [
+        { name: 'Économie', slug: 'economie', description: "Conjoncture, taux, inflation, emploi : l'actualité économique en France, en Europe et dans le monde." },
+        { name: 'Famille & transmission', slug: 'transmission', description: 'Donation, succession, protection du conjoint.' },
+        { name: 'Or, cryptos & alternatifs', slug: 'alternatifs', description: 'Or physique, cryptoactifs, forêts, private equity.' },
+        { name: 'Budget & conso', slug: 'budget', description: 'Banques, crédits, assurances, bons plans.' },
+        { name: 'Le Café du Revenu', slug: 'cafe', description: 'Présentations, discussions libres, idées pour la rédaction.' },
+      ];
+      const existing = await strapi.db.query('api::category.category').findMany({
+        select: ['slug'],
+      });
+      const existingSlugs = new Set(existing.map(category => category.slug));
+      for (const category of categories) {
+        if (existingSlugs.has(category.slug)) continue;
+        await strapi.documents('api::category.category').create({
+          data: category,
+          status: 'published',
+        });
+        strapi.log.info(`Catégorie créée : ${category.name}`);
+      }
+      await ensureCommunityPoll(strapi);
       strapi.log.info('Seed ignoré : la base contient déjà des données.');
       return;
     }
@@ -21,15 +41,103 @@ export default {
   },
 };
 
+async function initializeCommunityCounters(strapi: Core.Strapi) {
+  for (const uid of ['api::discussion.discussion', 'api::reply.reply'] as const) {
+    const tableName = strapi.db.metadata.get(uid).tableName;
+    const table = strapi.db.connection(tableName);
+    if (uid === 'api::discussion.discussion') {
+      await table.whereNull('likes').orWhereNull('views').update({
+        likes: strapi.db.connection.raw('COALESCE(??, 0)', ['likes']),
+        views: strapi.db.connection.raw('COALESCE(??, 0)', ['views']),
+      });
+    } else {
+      await table.whereNull('likes').update({
+        likes: strapi.db.connection.raw('COALESCE(??, 0)', ['likes']),
+      });
+    }
+  }
+  await synchronizeLikeCounters(strapi);
+}
+
+async function synchronizeLikeCounters(strapi: Core.Strapi) {
+  await migrateLikeTargets(strapi);
+  const likes = await strapi.db.query('api::community-like.community-like').findMany({
+    where: { active: true },
+    select: ['targetType', 'targetDocumentId'],
+  });
+  const discussionCounts = new Map<string, number>();
+  const replyCounts = new Map<string, number>();
+  for (const like of likes) {
+    const targetDocumentId = like.targetDocumentId as string | null;
+    if (!targetDocumentId) continue;
+    const counts = like.targetType === 'discussion' ? discussionCounts
+      : like.targetType === 'reply' ? replyCounts
+        : null;
+    if (counts) counts.set(targetDocumentId, (counts.get(targetDocumentId) ?? 0) + 1);
+  }
+
+  for (const [uid, counts] of [
+    ['api::discussion.discussion', discussionCounts],
+    ['api::reply.reply', replyCounts],
+  ] as const) {
+    const entries = await strapi.documents(uid).findMany({ fields: ['documentId'] });
+    const tableName = strapi.db.metadata.get(uid).tableName;
+    for (const entry of entries) {
+      await strapi.db.connection(tableName)
+        .where({ document_id: entry.documentId })
+        .update({ likes: counts.get(entry.documentId) ?? 0 });
+    }
+  }
+}
+
+async function migrateLikeTargets(strapi: Core.Strapi) {
+  const likes = await strapi.db.query('api::community-like.community-like').findMany({
+    select: ['id', 'targetKey', 'targetType', 'targetDocumentId'],
+  });
+  for (const like of likes) {
+    const match = /^(\d+):(discussion|reply):(.+)$/.exec(String(like.targetKey));
+    if (!match) {
+      strapi.log.warn(`Like communautaire ${like.id} ignoré : sa clé cible est invalide.`);
+      continue;
+    }
+
+    const [, , targetType, targetDocumentId] = match;
+    const uid = targetType === 'discussion' ? 'api::discussion.discussion' : 'api::reply.reply';
+    const target = await strapi.documents(uid).findOne({
+      documentId: targetDocumentId,
+      fields: ['id'],
+    });
+    if (!target) {
+      strapi.log.warn(`Like communautaire ${like.id} ignoré : publication ${targetDocumentId} introuvable.`);
+      continue;
+    }
+
+    await strapi.db.query('api::community-like.community-like').update({
+      where: { id: like.id },
+      data: {
+        targetType,
+        targetDocumentId,
+        discussion: targetType === 'discussion' ? target.id : null,
+        reply: targetType === 'reply' ? target.id : null,
+      },
+    });
+  }
+}
+
 async function seed(strapi: Core.Strapi) {
   // 1. Catégories
   const categoriesData = [
     { name: 'Bourse & actions', slug: 'bourse', description: 'Actions, ETF, PEA, compte-titres.' },
+    { name: 'Économie', slug: 'economie', description: "Conjoncture, taux, inflation, emploi : l'actualité économique en France, en Europe et dans le monde." },
     { name: 'Épargne & placements', slug: 'epargne', description: 'Livrets, fonds euros, obligations.' },
     { name: 'Assurance-vie', slug: 'assurance-vie', description: 'Choisir son contrat, arbitrer, transmettre.' },
     { name: 'Immobilier & SCPI', slug: 'immobilier', description: 'Résidence principale, locatif, SCPI.' },
     { name: 'Impôts & fiscalité', slug: 'impots', description: 'Déclaration, niches fiscales, IFI.' },
     { name: 'Retraite', slug: 'retraite', description: 'PER, rachat de trimestres, cumul emploi-retraite.' },
+    { name: 'Famille & transmission', slug: 'transmission', description: 'Donation, succession, protection du conjoint.' },
+    { name: 'Or, cryptos & alternatifs', slug: 'alternatifs', description: 'Or physique, cryptoactifs, forêts, private equity.' },
+    { name: 'Budget & conso', slug: 'budget', description: 'Banques, crédits, assurances, bons plans.' },
+    { name: 'Le Café du Revenu', slug: 'cafe', description: 'Présentations, discussions libres, idées pour la rédaction.' },
   ];
 
   const categories: Record<string, string> = {};
@@ -103,4 +211,26 @@ async function seed(strapi: Core.Strapi) {
     });
   }
   strapi.log.info(`${repliesData.length} réponses créées`);
+  await ensureCommunityPoll(strapi);
+}
+
+async function ensureCommunityPoll(strapi: Core.Strapi) {
+  const count = await strapi.db.query('api::community-poll.community-poll').count({});
+  if (count > 0) return;
+
+  await strapi.documents('api::community-poll.community-poll').create({
+    data: {
+      title: 'Quel est votre placement prioritaire pour les 12 prochains mois ?',
+      options: [
+        { label: 'Assurance-vie' },
+        { label: 'Actions / PEA' },
+        { label: 'Immobilier / SCPI' },
+        { label: 'Livrets et épargne sans risque' },
+        { label: 'Or' },
+        { label: 'Rembourser mes crédits' },
+      ],
+      active: true,
+    },
+  });
+  strapi.log.info('Sondage communautaire créé.');
 }

@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "community_likes",
+  "info": {
+    "singularName": "community-like",
+    "pluralName": "community-likes",
+    "displayName": "Community like"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "targetKey": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "targetType": {
+      "type": "enumeration",
+      "enum": ["discussion", "reply"]
+    },
+    "targetDocumentId": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "discussion": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::discussion.discussion"
+    },
+    "reply": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::reply.reply"
+    }
+  }
+}

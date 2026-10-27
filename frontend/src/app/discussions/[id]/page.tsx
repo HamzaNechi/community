@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDiscussion } from '@/lib/api';
 import ReplyForm from '@/components/ReplyForm';
+import CommunityLikeButton from '@/components/CommunityLikeButton';
+import DiscussionViews from '@/components/DiscussionViews';
+import BestAnswerButton from '@/components/BestAnswerButton';
+import CommunityShell from '@/components/CommunityShell';
 
 async function DiscussionContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,6 +41,10 @@ async function DiscussionContent({ params }: { params: Promise<{ id: string }> }
         </div>
         <h1>{discussion.title}</h1>
         <div className="post-content">{discussion.content}</div>
+        <div className="actions">
+          <CommunityLikeButton key={discussion.documentId} targetType="discussion" documentId={discussion.documentId} initialLikes={discussion.likes ?? 0} />
+          <span className="discussion-stats"><DiscussionViews key={discussion.documentId} documentId={discussion.documentId} initialViews={discussion.views ?? 0} /></span>
+        </div>
       </article>
 
       <section className="replies">
@@ -55,6 +63,15 @@ async function DiscussionContent({ params }: { params: Promise<{ id: string }> }
                 <span>{new Date(r.createdAt).toLocaleString('fr-FR')}</span>
               </div>
               <p className="post-content">{r.content}</p>
+              <div className="actions">
+                <CommunityLikeButton targetType="reply" documentId={r.documentId} initialLikes={r.likes ?? 0} />
+                <BestAnswerButton
+                  discussionDocumentId={discussion.documentId}
+                  replyDocumentId={r.documentId}
+                  discussionAuthorId={discussion.type === 'question' ? discussion.author?.id : undefined}
+                  selected={discussion.bestAnswer?.documentId === r.documentId}
+                />
+              </div>
             </article>
           ))}
         </div>
@@ -78,10 +95,12 @@ async function DiscussionContent({ params }: { params: Promise<{ id: string }> }
 
 export default function DiscussionPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <main className="wrap detail-wrap">
+    <CommunityShell>
+    <section className="detail-wrap">
       <Suspense fallback={<p className="loading-state">Chargement de la discussion…</p>}>
         <DiscussionContent params={params} />
       </Suspense>
-    </main>
+    </section>
+    </CommunityShell>
   );
 }

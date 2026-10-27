@@ -26,6 +26,15 @@
       "configurable": false,
       "required": true
     },
+    "totalPoints": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "communityInterests": {
+      "type": "json",
+      "default": []
+    },
     "provider": {
       "type": "string",
       "configurable": false

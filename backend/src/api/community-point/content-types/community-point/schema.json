@@ -1,0 +1,29 @@
+{
+  "kind": "collectionType",
+  "collectionName": "community_points",
+  "info": {
+    "singularName": "community-point",
+    "pluralName": "community-points",
+    "displayName": "Community point event"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "actionKey": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "points": {
+      "type": "integer",
+      "required": true,
+      "min": 1
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}

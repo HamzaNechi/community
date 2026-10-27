@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Category, getCategories } from '@/lib/api';
+import { Category, getCategories, getMyInterests, updateMyInterests } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 type Props = { label: string; className?: string };
@@ -36,8 +36,7 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
       const result = await getCategories();
       setCategories(result);
       if (user) {
-        const stored = localStorage.getItem(`community-interests:${user.documentId}`);
-        setInterests(stored ? JSON.parse(stored) as string[] : []);
+        setInterests(await getMyInterests());
       }
       return true;
     } catch (cause) {
@@ -52,10 +51,9 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
     setLoading(true);
     try {
       const result = await getCategories();
-      const loggedInUser = await login(identifier, password);
+      await login(identifier, password);
       setCategories(result);
-      const stored = localStorage.getItem(`community-interests:${loggedInUser.documentId}`);
-      setInterests(stored ? JSON.parse(stored) as string[] : []);
+      setInterests(await getMyInterests());
       setStep('interests');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La connexion a échoué.');
@@ -64,7 +62,7 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
     }
   }
 
-  function handleInterests(event: FormEvent<HTMLFormElement>) {
+  async function handleInterests(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user) {
       setError('Connectez-vous pour enregistrer vos centres d’intérêt.');
@@ -75,11 +73,11 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
       return;
     }
     try {
-      localStorage.setItem(`community-interests:${user.documentId}`, JSON.stringify(interests));
+      await updateMyInterests(interests);
       setOpen(false);
       router.refresh();
-    } catch {
-      setError('Vos préférences n’ont pas pu être enregistrées sur cet appareil.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Vos préférences n’ont pas pu être enregistrées.');
     }
   }
 
@@ -133,7 +131,7 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
             ) : (
               <form onSubmit={handleInterests} className="modal-body">
                 <div className="step-indicator"><span className="active" /><span className="active" /></div>
-                <p className="muted">Choisissez au moins un espace. Votre fil « Pour vous » sera personnalisé à partir de vos choix.</p>
+                <p className="muted">Choisissez les espaces qui vous intéressent : ils seront enregistrés sur votre compte. La personnalisation automatique du fil n’est pas encore active.</p>
                 <div className="interest-grid">
                   {categories.map(category => (
                     <label key={category.documentId} className={`interest-option ${interests.includes(category.slug) ? 'selected' : ''}`}>

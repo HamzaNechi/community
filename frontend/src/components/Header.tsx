@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell, faHouse, faLayerGroup, faPlus, faUser } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import JoinCommunityButton from '@/components/JoinCommunityButton';
+import CommunityIcon from '@/components/CommunityIcon';
+import MobileCommunityNav from '@/components/MobileCommunityNav';
 
-const siteSections = ['Bourse', 'Économie', 'Placements', 'Immobilier', 'Impôts', 'Succession'];
+const siteSections = ['Bourse', 'Économie', 'Placements', 'Immobilier', 'Impôts', 'Succession', 'Vie pratique'];
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -25,15 +25,16 @@ export default function Header() {
     <>
       <div className="sitebar">
         <div className="wrap sitebar-inner">
-          <a href="https://www.lerevenu.com" target="_blank" rel="noreferrer">← Retour sur lerevenu.com</a>
+          <a className="sb-back" href="https://www.lerevenu.com" target="_blank" rel="noopener noreferrer"><CommunityIcon name="arrowL" />Retour sur lerevenu.com</a>
           <nav className="sb-links" aria-label="Rubriques de lerevenu.com">
             {siteSections.map(section => (
               <a key={section} href="https://www.lerevenu.com" target="_blank" rel="noreferrer">{section}</a>
             ))}
           </nav>
-          <a className="sb-right subscribe" href="https://www.lerevenu.com" target="_blank" rel="noreferrer">
-            S’abonner
-          </a>
+          <span className="sb-right">
+            <a className="sb-mag" href="https://www.lerevenu.com" target="_blank" rel="noopener noreferrer"><CommunityIcon name="book" />Le magazine</a>
+            <a className="subscribe" href="https://www.lerevenu.com" target="_blank" rel="noopener noreferrer">S’abonner</a>
+          </span>
         </div>
       </div>
       <header className="hdr">
@@ -44,11 +45,11 @@ export default function Header() {
             <span className="brand-sub">Communauté</span>
           </Link>
           <form action="/" className="search" role="search">
-            <span aria-hidden="true">⌕</span>
+            <CommunityIcon name="search" />
             <input name="q" placeholder="Rechercher une discussion, un sujet…" aria-label="Rechercher" />
           </form>
           <details className="search-mobile">
-            <summary aria-label="Rechercher">⌕</summary>
+            <summary aria-label="Rechercher"><CommunityIcon name="search" /></summary>
             <form action="/" role="search">
               <input name="q" placeholder="Rechercher une discussion…" aria-label="Rechercher une discussion" />
             </form>
@@ -56,7 +57,7 @@ export default function Header() {
           <nav className="hdr-actions" aria-label="Compte">
             {user ? (
               <>
-                <Link href="/discussions/new" className="btn btn-primary hdr-publish">＋ Publier</Link>
+                <Link href="/discussions/new" className="btn btn-primary hdr-publish"><CommunityIcon name="plus" />Publier</Link>
                 <div className="account-menu-wrap">
                   <button
                     type="button"
@@ -75,9 +76,11 @@ export default function Header() {
                         <span className="account-avatar large">{user.username.slice(0, 1).toUpperCase()}</span>
                         <span><b>{user.username}</b><small>Membre de la communauté</small></span>
                       </div>
-                      <Link role="menuitem" href="/profil" onClick={() => setAccountOpen(false)}>◉ Mon profil</Link>
-                      <Link role="menuitem" href="/discussions/new" onClick={() => setAccountOpen(false)}>＋ Publier une discussion</Link>
-                      <button role="menuitem" type="button" onClick={handleLogout}>↪ Déconnexion</button>
+                      <Link role="menuitem" href="/profil" onClick={() => setAccountOpen(false)}><CommunityIcon name="user" />Mon profil</Link>
+                      <Link role="menuitem" href="/classement" onClick={() => setAccountOpen(false)}><CommunityIcon name="trophy" />Classement</Link>
+                      <Link role="menuitem" href="/charte" onClick={() => setAccountOpen(false)}><CommunityIcon name="book" />Charte</Link>
+                      <Link role="menuitem" href="/discussions/new" onClick={() => setAccountOpen(false)}><CommunityIcon name="plus" />Publier une discussion</Link>
+                      <button role="menuitem" type="button" onClick={handleLogout}><CommunityIcon name="external" />Déconnexion</button>
                     </div>
                   )}
                 </div>
@@ -91,27 +94,7 @@ export default function Header() {
           </nav>
         </div>
       </header>
-      <nav className="bnav" aria-label="Navigation mobile">
-        <Link href="/">
-          <FontAwesomeIcon icon={faHouse} aria-hidden="true" />
-          <span>Accueil</span>
-        </Link>
-        <Link href="/espaces">
-          <FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" />
-          <span>Espaces</span>
-        </Link>
-        <Link href="/discussions/new" aria-label="Publier">
-          <span className="plus"><FontAwesomeIcon icon={faPlus} aria-hidden="true" /></span>
-        </Link>
-        <Link href={user ? '/profil' : '/login'}>
-          <FontAwesomeIcon icon={faBell} aria-hidden="true" />
-          <span>Activité</span>
-        </Link>
-        <Link href={user ? '/profil' : '/login'}>
-          <FontAwesomeIcon icon={faUser} aria-hidden="true" />
-          <span>{user ? 'Profil' : 'Connexion'}</span>
-        </Link>
-      </nav>
+      <Suspense fallback={null}><MobileCommunityNav user={user} /></Suspense>
     </>
   );
 }

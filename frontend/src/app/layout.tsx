@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import Header from '@/components/Header';
+import DailyCommunityVisit from '@/components/DailyCommunityVisit';
 
 export const metadata: Metadata = {
   title: 'Communauté Le Revenu',
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AuthProvider>
+          <DailyCommunityVisit />
           <Header />
           {children}
         </AuthProvider>

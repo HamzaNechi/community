@@ -4,21 +4,12 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import JoinCommunityButton from '@/components/JoinCommunityButton';
 
-type Props = { categoryCount: number; discussionCount: number; replyCount: number };
-
-export default function HomeWelcome({ categoryCount, discussionCount, replyCount }: Props) {
+export default function HomeWelcome() {
   const { user } = useAuth();
 
   if (user) {
     return (
-      <section className="member-greeting">
-        <div>
-          <span className="eyebrow">VOTRE COMMUNAUTÉ</span>
-          <h1>Bonjour {user.username}</h1>
-          <p>Reprenez les échanges et découvrez les dernières discussions des lecteurs.</p>
-        </div>
-        <Link href="/profil" className="btn btn-secondary">Mon profil</Link>
-      </section>
+      <div className="greet"><h1>Bonjour {user.username}</h1></div>
     );
   }
 
@@ -26,11 +17,12 @@ export default function HomeWelcome({ categoryCount, discussionCount, replyCount
     <section className="hero">
       <div>
         <h1>La communauté des lecteurs du Revenu</h1>
-        <p>Posez vos questions d’argent, partagez vos expériences et échangez avec la rédaction. Bourse, épargne, impôts, retraite, transmission.</p>
+        <p>Posez vos questions d&apos;argent, partagez vos expériences et échangez avec la rédaction. Bourse, épargne, impôts, retraite, transmission.</p>
         <div className="hero-stats">
-          <span><b>{categoryCount}</b>espaces</span>
-          <span><b>{discussionCount}</b>discussions</span>
-          <span><b>{replyCount}</b>réponses</span>
+          <span><b>4 812</b>membres</span>
+          <span><b>1 808</b>discussions</span>
+          <span><b>13 700</b>réponses</span>
+          <span><b>94 %</b>des questions résolues</span>
         </div>
       </div>
       <div className="hero-cta">

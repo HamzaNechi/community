@@ -19,6 +19,16 @@
       "type": "text",
       "required": true
     },
+    "views": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "likes": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
     "type": {
       "type": "enumeration",
       "required": true,
@@ -44,6 +54,11 @@
       "relation": "oneToMany",
       "target": "api::reply.reply",
       "mappedBy": "discussion"
+    },
+    "bestAnswer": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::reply.reply"
     }
   }
 }

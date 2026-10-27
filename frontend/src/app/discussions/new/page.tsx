@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createDiscussion, getCategories, Category } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import CommunityShell from '@/components/CommunityShell';
 
 export default function NewDiscussionPage() {
   const { user, isLoading } = useAuth();
@@ -20,7 +21,7 @@ export default function NewDiscussionPage() {
     if (!isLoading && !user) router.push('/login');
   }, [isLoading, user, router]);
 
-  if (isLoading || !user) return <p className="text-center py-16">Chargement…</p>;
+  if (isLoading || !user) return <CommunityShell><p className="loading-state">Chargement…</p></CommunityShell>;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,7 +43,8 @@ export default function NewDiscussionPage() {
   }
 
   return (
-    <main className="wrap form-wrap">
+    <CommunityShell>
+    <section className="form-wrap">
       <header className="page-head">
         <h1>Nouvelle discussion</h1>
         <p>Partagez votre question ou votre expérience avec les lecteurs du Revenu.</p>
@@ -80,6 +82,7 @@ export default function NewDiscussionPage() {
           {loading ? 'Publication…' : 'Publier'}
         </button>
       </form>
-    </main>
+    </section>
+    </CommunityShell>
   );
 }

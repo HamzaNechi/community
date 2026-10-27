@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "community_polls",
+  "info": {
+    "singularName": "community-poll",
+    "pluralName": "community-polls",
+    "displayName": "Community poll"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "options": {
+      "type": "json",
+      "required": true
+    },
+    "active": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "votes": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::community-vote.community-vote",
+      "mappedBy": "poll"
+    }
+  }
+}

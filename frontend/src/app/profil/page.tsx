@@ -2,14 +2,18 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
-import { Category, Discussion, getCategories, getDiscussions } from '@/lib/api';
+import { Category, Discussion, getCategories, getDiscussions, getMyCommunityPoints, getMyInterests, updateMyInterests } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { getCommunityLevel } from '@/lib/community';
+import CommunityShell from '@/components/CommunityShell';
 
 export default function ProfilePage() {
   const { user, isLoading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [interests, setInterests] = useState<string[]>([]);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [monthlyPoints, setMonthlyPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -17,13 +21,14 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    Promise.all([getCategories(), getDiscussions()])
-      .then(([loadedCategories, loadedDiscussions]) => {
+    Promise.all([getCategories(), getDiscussions(), getMyCommunityPoints(), getMyInterests()])
+      .then(([loadedCategories, loadedDiscussions, communityPoints, savedInterests]) => {
         if (!active) return;
         setCategories(loadedCategories);
         setDiscussions(loadedDiscussions);
-        const saved = localStorage.getItem(`community-interests:${user.documentId}`);
-        setInterests(saved ? JSON.parse(saved) as string[] : []);
+        setTotalPoints(communityPoints.totalPoints);
+        setMonthlyPoints(communityPoints.monthlyPoints);
+        setInterests(savedInterests);
       })
       .catch(cause => {
         if (active) setError(cause instanceof Error ? cause.message : 'Impossible de charger le profil.');
@@ -34,16 +39,16 @@ export default function ProfilePage() {
     return () => { active = false; };
   }, [user]);
 
-  if (isLoading) return <main className="wrap"><p className="loading-state">Chargement du profil…</p></main>;
+  if (isLoading) return <CommunityShell active="profile"><p className="loading-state">Chargement du profil…</p></CommunityShell>;
   if (!user) {
     return (
-      <main className="wrap profile-wrap">
+      <CommunityShell active="profile">
         <section className="card empty-state">
           <h1>Connectez-vous pour voir votre profil</h1>
           <p>Retrouvez vos contributions et personnalisez les espaces qui vous intéressent.</p>
           <Link href="/login" className="btn btn-primary">Se connecter</Link>
         </section>
-      </main>
+      </CommunityShell>
     );
   }
 
@@ -52,6 +57,7 @@ export default function ProfilePage() {
     (total, discussion) => total + discussion.replies.filter(reply => reply.author?.documentId === user.documentId).length,
     0,
   );
+  const level = getCommunityLevel(totalPoints);
 
   function toggleInterest(slug: string) {
     setInterests(current => current.includes(slug)
@@ -59,7 +65,7 @@ export default function ProfilePage() {
       : [...current, slug]);
   }
 
-  function saveProfile(event: FormEvent<HTMLFormElement>) {
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setMessage(null);
@@ -72,15 +78,17 @@ export default function ProfilePage() {
       return;
     }
     try {
-      localStorage.setItem(`community-interests:${user.documentId}`, JSON.stringify(interests));
-      setMessage('Vos centres d’intérêt ont été enregistrés sur cet appareil.');
-    } catch {
-      setError('Vos préférences n’ont pas pu être enregistrées sur cet appareil.');
+      const savedInterests = await updateMyInterests(interests);
+      setInterests(savedInterests);
+      setMessage('Vos centres d’intérêt ont été enregistrés.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Vos préférences n’ont pas pu être enregistrées.');
     }
   }
 
   return (
-    <main className="wrap profile-wrap">
+    <CommunityShell active="profile">
+    <section className="profile-wrap">
       <div className="profile-layout">
         <div className="main">
           <section className="card profile-header">
@@ -94,14 +102,25 @@ export default function ProfilePage() {
           </section>
 
           <section className="profile-stats">
+            <div className="card"><b>{totalPoints}</b><small>points</small></div>
+            <div className="card"><b>{monthlyPoints}</b><small>points ce mois</small></div>
             <div className="card"><b>{myDiscussions.length}</b><small>discussions</small></div>
             <div className="card"><b>{myReplies}</b><small>réponses</small></div>
             <div className="card"><b>{interests.length}</b><small>espaces suivis</small></div>
           </section>
+          <section className="card profile-level">
+            <div className="section-heading">
+              <div><h2>{level.name}</h2><p>{level.nextName ? `Encore ${level.pointsToNext} points pour devenir « ${level.nextName} »` : 'Niveau maximum atteint'}</p></div>
+              <Link href="/classement" className="text-link">Classement →</Link>
+            </div>
+            <div className="level-progress" role="progressbar" aria-label="Progression vers le prochain niveau" aria-valuenow={level.progress} aria-valuemin={0} aria-valuemax={100}>
+              <span style={{ width: `${level.progress}%` }} />
+            </div>
+          </section>
 
           <form className="card interests-form" onSubmit={saveProfile}>
             <div className="section-heading">
-              <div><h2>Mes centres d’intérêt</h2><p>Choisissez les espaces à retrouver en priorité dans votre fil.</p></div>
+              <div><h2>Mes centres d’intérêt</h2><p>Ces espaces préférés sont enregistrés sur votre compte. La personnalisation automatique du fil n’est pas encore active.</p></div>
               <span className="interest-count">{interests.length} sélectionné{interests.length === 1 ? '' : 's'}</span>
             </div>
             {loading ? <p className="muted">Chargement de vos espaces…</p> : (
@@ -151,6 +170,7 @@ export default function ProfilePage() {
           </section>
         </aside>
       </div>
-    </main>
+    </section>
+    </CommunityShell>
   );
 }

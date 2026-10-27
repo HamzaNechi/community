@@ -1,0 +1,35 @@
+{
+  "kind": "collectionType",
+  "collectionName": "community_votes",
+  "info": {
+    "singularName": "community-vote",
+    "pluralName": "community-votes",
+    "displayName": "Community vote"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "voteKey": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "optionIndex": {
+      "type": "integer",
+      "required": true,
+      "min": 0
+    },
+    "poll": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::community-poll.community-poll",
+      "inversedBy": "votes"
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}
