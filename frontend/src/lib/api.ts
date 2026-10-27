@@ -1,4 +1,6 @@
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+const STRAPI_URL = typeof window === 'undefined'
+  ? (process.env.STRAPI_INTERNAL_URL || 'http://strapi:1337')  // côté serveur (Docker)
+  : (process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337'); // côté navigateur
 
 export interface StrapiUser {
   id: number;
@@ -104,6 +106,7 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 export async function getDiscussions(params: { categorySlug?: string } = {}): Promise<Discussion[]> {
+  console.log('Fetching discussions with params:', params);
   const query = new URLSearchParams({
     'populate[author]': 'true',
     'populate[category]': 'true',

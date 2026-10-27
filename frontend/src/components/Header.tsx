@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBell, faHouse, faLayerGroup, faPlus, faUser } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import JoinCommunityButton from '@/components/JoinCommunityButton';
@@ -90,11 +92,25 @@ export default function Header() {
         </div>
       </header>
       <nav className="bnav" aria-label="Navigation mobile">
-        <Link href="/">⌂<span>Accueil</span></Link>
-        <Link href="/espaces">▦<span>Espaces</span></Link>
-        <Link href="/discussions/new" aria-label="Publier"><span className="plus">＋</span></Link>
-        <Link href={user ? '/profil' : '/login'}>♧<span>Activité</span></Link>
-        <Link href={user ? '/profil' : '/login'}>◉<span>{user ? 'Profil' : 'Connexion'}</span></Link>
+        <Link href="/">
+          <FontAwesomeIcon icon={faHouse} aria-hidden="true" />
+          <span>Accueil</span>
+        </Link>
+        <Link href="/espaces">
+          <FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" />
+          <span>Espaces</span>
+        </Link>
+        <Link href="/discussions/new" aria-label="Publier">
+          <span className="plus"><FontAwesomeIcon icon={faPlus} aria-hidden="true" /></span>
+        </Link>
+        <Link href={user ? '/profil' : '/login'}>
+          <FontAwesomeIcon icon={faBell} aria-hidden="true" />
+          <span>Activité</span>
+        </Link>
+        <Link href={user ? '/profil' : '/login'}>
+          <FontAwesomeIcon icon={faUser} aria-hidden="true" />
+          <span>{user ? 'Profil' : 'Connexion'}</span>
+        </Link>
       </nav>
     </>
   );

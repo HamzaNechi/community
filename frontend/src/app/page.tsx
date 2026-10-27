@@ -7,13 +7,17 @@ import HomeSidebar from '@/components/HomeSidebar';
 import HomeWelcome from '@/components/HomeWelcome';
 import MemberModePreview from '@/components/MemberModePreview';
 
-type HomeSearchParams = Promise<{ category?: string; q?: string; sort?: string }>;
+type HomeSearchParams = Promise<{ category?: string; q?: string; sort?: string; page?: string }>;
+
+const DISCUSSIONS_PER_PAGE = 10;
 
 async function DiscussionsContent({ searchParams }: { searchParams: HomeSearchParams }) {
   const params = await searchParams;
   const categorySlug = params.category;
   const query = params.q?.trim().toLocaleLowerCase('fr');
   const sort = params.sort ?? 'popular';
+  const requestedPage = Number.parseInt(params.page ?? '1', 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   let discussions: Discussion[] = [];
   let categories: Category[] = [];
@@ -41,6 +45,12 @@ async function DiscussionsContent({ searchParams }: { searchParams: HomeSearchPa
     if (sort === 'popular') return b.replies.length - a.replies.length || b.createdAt.localeCompare(a.createdAt);
     return b.createdAt.localeCompare(a.createdAt);
   });
+  const pageCount = Math.ceil(sortedDiscussions.length / DISCUSSIONS_PER_PAGE);
+  const currentPage = pageCount ? Math.min(page, pageCount) : 1;
+  const pageDiscussions = sortedDiscussions.slice(
+    (currentPage - 1) * DISCUSSIONS_PER_PAGE,
+    currentPage * DISCUSSIONS_PER_PAGE,
+  );
 
   const hrefForSort = (value: string) => {
     const searchParamsForSort = new URLSearchParams();
@@ -48,6 +58,15 @@ async function DiscussionsContent({ searchParams }: { searchParams: HomeSearchPa
     if (query) searchParamsForSort.set('q', params.q ?? '');
     if (value !== 'popular') searchParamsForSort.set('sort', value);
     const search = searchParamsForSort.toString();
+    return search ? `/?${search}` : '/';
+  };
+  const hrefForPage = (value: number) => {
+    const searchParamsForPage = new URLSearchParams();
+    if (categorySlug) searchParamsForPage.set('category', categorySlug);
+    if (query) searchParamsForPage.set('q', params.q ?? '');
+    if (sort !== 'popular') searchParamsForPage.set('sort', sort);
+    if (value > 1) searchParamsForPage.set('page', String(value));
+    const search = searchParamsForPage.toString();
     return search ? `/?${search}` : '/';
   };
 
@@ -71,7 +90,7 @@ async function DiscussionsContent({ searchParams }: { searchParams: HomeSearchPa
       </nav>
 
       <main className="main">
-        <MemberModePreview />
+        {/* <MemberModePreview /> */}
         <HomeWelcome
           categoryCount={categories.length}
           discussionCount={discussions.length}
@@ -108,8 +127,39 @@ async function DiscussionsContent({ searchParams }: { searchParams: HomeSearchPa
           </div>
         ) : (
           <div className="feed">
-            {sortedDiscussions.map(discussion => <DiscussionCard key={discussion.documentId} discussion={discussion} />)}
+            {pageDiscussions.map(discussion => <DiscussionCard key={discussion.documentId} discussion={discussion} />)}
           </div>
+        )}
+        {pageCount > 1 && (
+          <nav className="pagination" aria-label="Pagination des discussions">
+            <Link
+              href={hrefForPage(currentPage - 1)}
+              className={`pagination-link ${currentPage === 1 ? 'disabled' : ''}`}
+              aria-disabled={currentPage === 1}
+              tabIndex={currentPage === 1 ? -1 : undefined}
+            >
+              Précédent
+            </Link>
+            {Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => (
+              <Link
+                key={pageNumber}
+                href={hrefForPage(pageNumber)}
+                className={`pagination-link ${pageNumber === currentPage ? 'active' : ''}`}
+                aria-current={pageNumber === currentPage ? 'page' : undefined}
+                aria-label={`Page ${pageNumber}`}
+              >
+                {pageNumber}
+              </Link>
+            ))}
+            <Link
+              href={hrefForPage(currentPage + 1)}
+              className={`pagination-link ${currentPage === pageCount ? 'disabled' : ''}`}
+              aria-disabled={currentPage === pageCount}
+              tabIndex={currentPage === pageCount ? -1 : undefined}
+            >
+              Suivant
+            </Link>
+          </nav>
         )}
       </main>
 

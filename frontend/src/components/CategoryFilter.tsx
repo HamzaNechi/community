@@ -12,6 +12,7 @@ export default function CategoryFilter({ categories, current }: { categories: Ca
     const params = new URLSearchParams(searchParams.toString());
     if (slug) params.set('category', slug);
     else params.delete('category');
+    params.delete('page');
     const query = params.toString();
     return query ? `/?${query}` : '/';
   };

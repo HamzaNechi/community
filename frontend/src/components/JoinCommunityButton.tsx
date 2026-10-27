@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Category, getCategories } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -91,11 +92,11 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
   return (
     <>
       <button type="button" className={className} onClick={() => void openDialog()}>{label}</button>
-      {open && (
+      {open && createPortal(
         <div className="modal-overlay" onMouseDown={event => {
           if (event.target === event.currentTarget) setOpen(false);
         }}>
-          <section className="join-modal" role="dialog" aria-modal="true" aria-labelledby="join-title">
+          <section className={`join-modal ${step === 'login' ? 'login' : ''}`} role="dialog" aria-modal="true" aria-labelledby="join-title">
             <header className="modal-header">
               <div>
                 <span className="step-label">ÉTAPE {step === 'login' ? '1' : '2'} SUR 2</span>
@@ -106,8 +107,15 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
             {step === 'login' ? (
               <form onSubmit={handleLogin} className="modal-body">
                 <div className="step-indicator"><span className="active" /><span /></div>
-                <p className="muted">Utilisez le compte lerevenu.com que vous utilisez déjà sur le site ou pour le magazine.</p>
-                <div className="account-sso"><span className="lr-logo">R</span><span><b>Votre compte Le Revenu</b><small>Un seul identifiant pour participer.</small></span></div>
+                <ul className="join-benefits">
+                  <li><span aria-hidden="true">✓</span>Posez vos questions d’argent aux lecteurs et à la rédaction</li>
+                  <li><span aria-hidden="true">✓</span>Suivez les discussions qui vous concernent</li>
+                  <li><span aria-hidden="true">✓</span>Gagnez des badges en aidant les autres</li>
+                </ul>
+                <div className="account-sso">
+                  <span className="account-sso-logo" aria-hidden="true">R</span>
+                  <span><b>Votre compte lerevenu.com</b><small>Le même identifiant que pour le site et le magazine</small></span>
+                </div>
                 <div className="field">
                   <label htmlFor="join-email">Adresse e-mail</label>
                   <input id="join-email" type="email" autoComplete="email" required value={identifier} onChange={event => setIdentifier(event.target.value)} />
@@ -120,7 +128,7 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
                 <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
                   {loading ? 'Connexion…' : 'Continuer'}
                 </button>
-                <p className="modal-footnote">Pas encore de compte ? <a href="https://www.lerevenu.com" target="_blank" rel="noreferrer">Créer un compte sur lerevenu.com</a></p>
+                <p className="modal-footnote">Pas encore de compte ? <a href="https://www.lerevenu.com" target="_blank" rel="noreferrer">Créer un compte gratuit</a></p>
               </form>
             ) : (
               <form onSubmit={handleInterests} className="modal-body">
@@ -142,7 +150,8 @@ export default function JoinCommunityButton({ label, className = 'btn btn-primar
               </form>
             )}
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
